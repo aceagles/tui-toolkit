@@ -44,6 +44,13 @@ type pane struct {
 type Navigator struct {
 	panes []pane
 
+	// SkipWhen reports that C-h navigation should stand aside so a bare
+	// Backspace reaches the focused widget instead. It guards only the
+	// Backspace spelling of Left (see InputCapture); C-j/k/l are unaffected.
+	// The default skips tview's InputField and TextArea, where Backspace
+	// must delete. Nil means never skip.
+	SkipWhen func() bool
+
 	// focus and setFocus wrap the application; tests inject fakes.
 	focus    func() tview.Primitive
 	setFocus func(tview.Primitive)
@@ -57,6 +64,13 @@ func New(app *tview.Application) *Navigator {
 	n := &Navigator{
 		focus:    app.GetFocus,
 		setFocus: func(p tview.Primitive) { app.SetFocus(p) },
+	}
+	n.SkipWhen = func() bool {
+		switch app.GetFocus().(type) {
+		case *tview.InputField, *tview.TextArea:
+			return true
+		}
+		return false
 	}
 	if os.Getenv("TMUX") != "" {
 		n.forward = func(dir Direction) {
@@ -77,12 +91,23 @@ func (n *Navigator) Add(p tview.Primitive, col, row int) {
 
 // InputCapture translates C-h/j/k/l. Everything else passes through.
 //
-// Note C-h is byte 0x08, which some terminals also send for Backspace;
-// most send DEL (0x7f) for the key itself, so text entry keeps working.
+// C-h is the awkward one: a terminal sends it as byte 0x08, which tcell
+// reports as KeyBackspace (8), never KeyCtrlH (72) — so matching only
+// KeyCtrlH silently drops real C-h and only C-j/k/l would work. We therefore
+// accept KeyBackspace as Left, but gate it on SkipWhen so a text field still
+// gets its Backspace (the app-level InputCapture runs before the focused
+// widget, so an ungated grab here would eat every field's Backspace). The
+// dedicated Backspace key arrives as KeyBackspace2 (DEL, 0x7f) and is left
+// alone regardless.
 func (n *Navigator) InputCapture(ev *tcell.EventKey) *tcell.EventKey {
 	var dir Direction
 	switch ev.Key() {
 	case tcell.KeyCtrlH:
+		dir = Left
+	case tcell.KeyBackspace:
+		if n.SkipWhen != nil && n.SkipWhen() {
+			return ev
+		}
 		dir = Left
 	case tcell.KeyCtrlJ:
 		dir = Down

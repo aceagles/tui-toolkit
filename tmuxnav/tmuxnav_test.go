@@ -85,6 +85,43 @@ func TestInputCaptureMovesFocusAndForwardsAtEdge(t *testing.T) {
 	}
 }
 
+// TestInputCaptureBackspaceIsLeft covers the terminal reality that Ctrl+H
+// arrives as KeyBackspace, not KeyCtrlH: it must still navigate Left, but
+// SkipWhen has to be able to hand a bare Backspace back to a focused text
+// widget so field editing keeps working.
+func TestInputCaptureBackspaceIsLeft(t *testing.T) {
+	panes := grid([2]int{0, 0}, [2]int{1, 0})
+	focused := panes[1].p // start on the right pane so Left has somewhere to go
+	skip := false
+	n := &Navigator{
+		panes:    panes,
+		focus:    func() tview.Primitive { return focused },
+		setFocus: func(p tview.Primitive) { focused = p },
+		SkipWhen: func() bool { return skip },
+	}
+
+	// Backspace navigates Left when not skipping.
+	if ev := n.InputCapture(tcell.NewEventKey(tcell.KeyBackspace, 0, tcell.ModNone)); ev != nil {
+		t.Fatal("Backspace (Ctrl+H) should be consumed as Left")
+	}
+	if focused != panes[0].p {
+		t.Fatal("Backspace did not move focus to the left pane")
+	}
+
+	// With SkipWhen true (a text field has focus), Backspace passes through.
+	skip = true
+	ev := tcell.NewEventKey(tcell.KeyBackspace, 0, tcell.ModNone)
+	if got := n.InputCapture(ev); got != ev {
+		t.Fatal("Backspace must pass through to a focused text widget when SkipWhen is true")
+	}
+
+	// The dedicated Backspace key (DEL) is never treated as navigation.
+	del := tcell.NewEventKey(tcell.KeyBackspace2, 0, tcell.ModNone)
+	if got := n.InputCapture(del); got != del {
+		t.Fatal("KeyBackspace2 (DEL) must always pass through")
+	}
+}
+
 func TestInputCaptureEdgeOutsideTmux(t *testing.T) {
 	panes := grid([2]int{0, 0})
 	n := &Navigator{

@@ -57,6 +57,12 @@ func Motions() func(ev *tcell.EventKey) *tcell.EventKey {
 // Chain composes input captures left to right, stopping when one consumes
 // (returns nil) or transforms the event. Useful for stacking Motions with a
 // tool's own bindings on the same widget.
+//
+// Because a *transformed* (non-nil, different) event also stops the chain, a
+// stage cannot rewrite an event and expect a later stage to act on the new
+// value — the rewritten event goes straight to the widget, skipping the rest
+// of the chain. A stage that wants to remap a key into another stage's
+// behaviour must invoke that behaviour itself and return nil to consume.
 func Chain(caps ...func(*tcell.EventKey) *tcell.EventKey) func(*tcell.EventKey) *tcell.EventKey {
 	return func(ev *tcell.EventKey) *tcell.EventKey {
 		for _, c := range caps {
