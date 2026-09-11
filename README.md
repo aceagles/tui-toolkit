@@ -8,6 +8,8 @@ Shared helpers for ad-hoc [tview](https://github.com/rivo/tview) workbench TUIs,
 | `vimkeys` | Vim motions for tview widgets (`j/k`, `gg/G`, `C-d/C-u`) and a Space-leader chord dispatcher with groups, a which-key tray along the bottom of the screen, and a help table built from the same registry. |
 | `extedit` | Suspend the app and open `$EDITOR` on a temp file; returns the saved contents. For JSON profiles and anything multi-line. |
 | `theme` | tokyonight night and day palettes as semantic roles (`RoleWarn`, `RoleBorderFocus`, …). `Apply` sets `tview.Styles`, `Tag` gives colour tags, `Detect` follows tmux's light toggle, `Watch` switches live. |
+| `confirm` | The confirmation dialogue for anything that changes a live system: labelled lines of exactly what will be sent; Cancel holds focus so Enter backs out; Esc cancels. |
+| `header` | The one-line target header: tool, target(s), plane, fields, link state. A non-loopback target is drawn in the theme's Remote colour as plain text. `IsLoopback` decides. |
 
 ## Wiring
 
