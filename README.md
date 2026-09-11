@@ -7,6 +7,7 @@ Shared helpers for ad-hoc [tview](https://github.com/rivo/tview) workbench TUIs,
 | `tmuxnav` | `C-h/j/k/l` focus movement between registered panes, forwarding to `tmux select-pane` at the edge — vim-tmux-navigator semantics for a TUI. |
 | `vimkeys` | Vim motions for tview widgets (`j/k`, `gg/G`, `C-d/C-u`) and a Space-leader chord dispatcher with groups, a which-key tray along the bottom of the screen, and a help table built from the same registry. |
 | `extedit` | Suspend the app and open `$EDITOR` on a temp file; returns the saved contents. For JSON profiles and anything multi-line. |
+| `theme` | tokyonight night and day palettes as semantic roles (`RoleWarn`, `RoleBorderFocus`, …). `Apply` sets `tview.Styles`, `Tag` gives colour tags, `Detect` follows tmux's light toggle, `Watch` switches live. |
 
 ## Wiring
 
@@ -29,6 +30,18 @@ logPane.SetInputCapture(vimkeys.Motions())
 ```
 
 Put the leader first in the chain so a pending chord owns every key, including `C-h`. The tray has no timeout; without a tray the leader falls back to an 800ms chord timeout. Tools with modals set `leader.SkipWhen = func() bool { return modalOpen() || vimkeys.FocusWantsSpace(app) }`.
+
+## Theme
+
+```go
+theme.EnableTrueColor()
+theme.Apply(theme.Detect()) // before building widgets
+defer theme.Watch(app, 0, func(p theme.Palette) { theme.Restyle(pages, p); redraw() })()
+```
+
+Colour by role, never by name: `p.Tag(theme.RoleWarn)` in tagged text, `p.Color(theme.RoleBorderFocus)` on widgets. `Detect` order: `TUI_THEME=night|day`, then the tmux global option `@dotbar-light` (set means day; change `theme.TmuxLightOption` for another toggle), then night. `Watch` polls every 2s, re-applies and calls you on the event loop; `Restyle` remaps existing widgets, and your callback re-renders any tagged text.
+
+Truecolor: tcell's `tmux-256color` entry has no RGB capability, so under tmux it rounds the palette to the nearest of 256 colours unless `COLORTERM=truecolor`. `EnableTrueColor` sets that for the process when tmux reports `RGB` in `#{client_termfeatures}` (tmux `terminal-overrides ",*256col*:Tc"` or `terminal-features ",*:RGB"`). It leaves an existing `COLORTERM` or `TCELL_TRUECOLOR` alone. Outside tmux, or with no client attached, export `COLORTERM=truecolor` yourself if the terminal supports it.
 
 ## tmux setup
 
