@@ -58,7 +58,9 @@ func Apply(p Palette) {
 
 // Restyle recolours an existing primitive tree for p, for use after a live
 // palette switch. It walks Flex, Pages (hidden pages too), Frame and Form
-// children; Grid and custom containers must be passed separately.
+// children, and any container with Flex's GetItemCount and GetItem (such
+// as layout.Stack); Grid and other custom containers must be passed
+// separately.
 //
 // Box backgrounds and borders are remapped role for role, so a dialogue on
 // RoleBgFloat stays on RoleBgFloat and a RoleBorderFocus border stays
@@ -73,13 +75,20 @@ func Restyle(root tview.Primitive, p Palette) {
 	walk(root, func(prim tview.Primitive) { restyle(prim, p) })
 }
 
+// container is any primitive that lists its children the way tview.Flex
+// does, such as layout.Stack.
+type container interface {
+	GetItemCount() int
+	GetItem(int) tview.Primitive
+}
+
 func walk(prim tview.Primitive, fn func(tview.Primitive)) {
 	if prim == nil {
 		return
 	}
 	fn(prim)
 	switch c := prim.(type) {
-	case *tview.Flex:
+	case container: // tview.Flex, layout.Stack
 		for i := range c.GetItemCount() {
 			walk(c.GetItem(i), fn)
 		}

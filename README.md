@@ -10,6 +10,7 @@ Shared helpers for ad-hoc [tview](https://github.com/rivo/tview) workbench TUIs,
 | `theme` | tokyonight night and day palettes as semantic roles (`RoleWarn`, `RoleBorderFocus`, …). `Apply` sets `tview.Styles`, `Tag` gives colour tags, `Detect` follows tmux's light toggle, `Watch` switches live. |
 | `confirm` | The confirmation dialogue for anything that changes a live system: labelled lines of exactly what will be sent; Cancel holds focus so Enter backs out; Esc cancels. |
 | `header` | The one-line target header: tool, target(s), plane, fields, link state. A non-loopback target is drawn in the theme's Remote colour as plain text. `IsLoopback` decides. |
+| `layout` | Pane sizing from what panes need: each declares `{Min, Pref, Max, Weight}` and a `Stack` re-solves every frame. Panes that cannot have their Min hide, rightmost first, with a `+N hidden` badge. `C-w H/J/K/L` resize mode, `Alt-hjkl` nudge, `C-w =` equalise, `C-w z` zoom. |
 
 ## Wiring
 
@@ -32,6 +33,27 @@ logPane.SetInputCapture(vimkeys.Motions())
 ```
 
 Put the leader first in the chain so a pending chord owns every key, including `C-h`. The tray has no timeout; without a tray the leader falls back to an 800ms chord timeout. Tools with modals set `leader.SkipWhen = func() bool { return modalOpen() || vimkeys.FocusWantsSpace(app) }`.
+
+## Layout
+
+```go
+body := layout.NewStack(layout.Horizontal)
+body.Add(list, layout.Spec{Min: 24, Pref: 30, Priority: 1})
+body.Add(table, layout.Spec{Min: 20}).SetSpecFunc(tableSpec) // Pref from content, every frame
+area := layout.NewStack(layout.Vertical)
+area.Add(body, layout.Spec{Min: 5, Weight: 1, Priority: 1})
+area.Add(logPane, layout.Spec{Min: 5, Pref: 9})
+
+lay := layout.New(app, area) // area is what a zoomed pane fills
+lay.SkipWhen = func() bool { _, chord := leader.Pending(); return chord || modalOpen() || layout.TextFocus(app) }
+lay.OnState = redrawHeaderAndNav // header shows lay.Status(); register only lay.Visible panes with tmuxnav
+leader.MustRegister("z", "[z]oom pane", lay.ToggleZoom)
+app.SetInputCapture(vimkeys.Chain(lay.InputCapture, leader.InputCapture, nav.InputCapture))
+```
+
+Sizing is greedy: every pane gets its Min, then its Pref in order, then what is left by Weight up to Max (0 = unbounded). Space nobody wants stays empty; nothing stretches without a Weight. When the Mins do not fit, the lowest-Priority, rightmost panes hide and come back in reverse order as the terminal widens.
+
+`C-w H/J/K/L` moves a border 5 cells and stays in resize mode, so `C-w L L L` moves 15; any other key leaves the mode and is then handled as normal, and Esc leaves silently. The key names the direction the border moves, as in tmux: the focused pane's right (bottom) border if it has a neighbour there, else its left (top). Resizes are clamped to Min and Max and re-clamped when the terminal shrinks. `C-w z` (or `C-w o`) zooms the focused pane over the area; again or Esc restores it and the focus. Put `lay.InputCapture` first in the chain so the key that ends resize mode reaches everything after it.
 
 ## Theme
 

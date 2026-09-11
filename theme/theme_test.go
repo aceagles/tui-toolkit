@@ -211,6 +211,26 @@ func TestRestyle(t *testing.T) {
 	}
 }
 
+// stack is a custom container with Flex's child accessors, as layout.Stack
+// has; theme cannot import layout, which imports theme.
+type stack struct {
+	*tview.Box
+	kids []tview.Primitive
+}
+
+func (s *stack) GetItemCount() int             { return len(s.kids) }
+func (s *stack) GetItem(i int) tview.Primitive { return s.kids[i] }
+
+// Restyle walks into any container that lists children like tview.Flex.
+func TestRestyleWalksFlexLikeContainers(t *testing.T) {
+	applyNight(t)
+	text := tview.NewTextView()
+	Restyle(&stack{Box: tview.NewBox(), kids: []tview.Primitive{text}}, Day)
+	if got := text.GetBackgroundColor(); got != Day.Color(RoleBg) {
+		t.Errorf("child background = %06x, want %06x", got.Hex(), Day.Color(RoleBg).Hex())
+	}
+}
+
 // fieldBg is the field background an input field draws with.
 func fieldBg(i *tview.InputField) tcell.Color {
 	_, bg, _ := i.GetFieldStyle().Decompose()
