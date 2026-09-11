@@ -3,10 +3,9 @@ package tview
 import (
 	"github.com/gdamore/tcell/v2"
 	rtview "github.com/rivo/tview"
-)
 
-// trayGap is the blank cells between tray columns.
-const trayGap = 3
+	"github.com/aceagles/tui-toolkit/vimkeys/core"
+)
 
 // Tray wraps an application root and, while a leader chord is pending,
 // draws a which-key panel over the bottom of it listing the keys that can
@@ -22,10 +21,11 @@ const trayGap = 3
 // Every other Primitive method passes through to the wrapped root, so the
 // root keeps its focus, mouse and paste handling.
 //
-// Draw itself only lays out and paints core.Leader.Content's lines — the
-// line ordering, grouping and "(no leader bindings)" fallback are computed
-// once in vimkeys/core, so the bubbletea tray renders the identical content
-// with no risk of the two drifting apart.
+// Draw itself only paints core.Leader.Content's lines into the columns and
+// rows core.LayoutTray assigns them — the line ordering, grouping, tray
+// layout and "(no leader bindings)" fallback are all computed once in
+// vimkeys/core, so the bubbletea tray renders the identical content in the
+// identical layout with no risk of the two drifting apart.
 type Tray struct {
 	rtview.Primitive
 	leader *Leader
@@ -70,12 +70,9 @@ func (t *Tray) Draw(screen tcell.Screen) {
 	}
 
 	innerX, innerW := x+2, w-4 // border plus one cell of padding each side
-	colW := keyW + 2 + descW
-	cols := max(1, (innerW+trayGap)/(colW+trayGap))
-	rows := min((len(lines)+cols-1)/cols, h-2)
-	if cols == 1 {
-		colW = innerW // one column: let long descriptions use the width
-	}
+	naturalColW := keyW + 2 + descW
+	layout, _ := core.LayoutTray(len(lines), naturalColW, innerW, h-2)
+	rows, colW := layout.Rows, layout.ColWidth
 
 	top := y + h - rows - 2
 	t.box.SetRect(x, top, w, rows+2)
@@ -86,12 +83,9 @@ func (t *Tray) Draw(screen tcell.Screen) {
 		SetTitleAlign(rtview.AlignLeft)
 	t.box.Draw(screen)
 
-	for i, l := range lines {
-		col, row := i/rows, i%rows
-		if col >= cols {
-			break
-		}
-		cx, cy := innerX+col*(colW+trayGap), top+1+row
+	for i, cell := range layout.Cells {
+		l := lines[i]
+		cx, cy := innerX+cell.Col*(colW+core.TrayGap), top+1+cell.Row
 		avail := min(colW, innerX+innerW-cx)
 		rtview.Print(screen, l.key, cx, cy, avail, rtview.AlignLeft, rtview.Styles.SecondaryTextColor)
 		descColor := rtview.Styles.PrimaryTextColor
