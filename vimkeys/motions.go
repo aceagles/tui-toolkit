@@ -1,6 +1,25 @@
 // Package vimkeys makes tview widgets answer to vim motions and gives an
 // application a Space-leader chord dispatcher, so a workbench TUI feels
 // like another nvim split.
+//
+// The leader can show a which-key tray: press Space and a panel along the
+// bottom lists the next keys, groups marked `+name`. A group key opens its
+// children, a leaf key runs its handler, Esc closes, Backspace goes up a
+// level. Mounting it is two lines on top of the leader's registrations
+// (OnUnbound is optional):
+//
+//	leader := vimkeys.NewLeader(app, 0)
+//	leader.MustRegister("r", "refresh", refresh)
+//	leader.MustRegisterGroup("g", "group")
+//	leader.MustRegister("ga", "add group", addGroup)
+//	leader.MustRegister("gx", "delete group", deleteGroup)
+//	leader.OnUnbound = func(p string, ev *tcell.EventKey) { logf("<space>%s %s unbound", p, ev.Name()) }
+//
+//	app.SetRoot(vimkeys.NewTray(leader, root), true)
+//	app.SetInputCapture(leader.InputCapture)
+//
+// The tray and HelpText read the same registry, so a `?` overlay built
+// from HelpText or Entries lists exactly what the tray offers.
 package vimkeys
 
 import "github.com/gdamore/tcell/v2"

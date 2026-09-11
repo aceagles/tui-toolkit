@@ -5,7 +5,7 @@ Shared helpers for ad-hoc [tview](https://github.com/rivo/tview) workbench TUIs,
 | Package | What it does |
 | --- | --- |
 | `tmuxnav` | `C-h/j/k/l` focus movement between registered panes, forwarding to `tmux select-pane` at the edge — vim-tmux-navigator semantics for a TUI. |
-| `vimkeys` | Vim motions for tview widgets (`j/k`, `gg/G`, `C-d/C-u`) and a Space-leader chord dispatcher with a help table. |
+| `vimkeys` | Vim motions for tview widgets (`j/k`, `gg/G`, `C-d/C-u`) and a Space-leader chord dispatcher with groups, a which-key tray along the bottom of the screen, and a help table built from the same registry. |
 | `extedit` | Suspend the app and open `$EDITOR` on a temp file; returns the saved contents. For JSON profiles and anything multi-line. |
 
 ## Wiring
@@ -20,10 +20,15 @@ nav.Add(logPane, 0, 1)
 
 leader := vimkeys.NewLeader(app, 0)
 leader.MustRegister("r", "[R]efresh now", refresh)
+leader.MustRegisterGroup("g", "groups")
+leader.MustRegister("ga", "[a]dd group", addGroup)
 
-app.SetInputCapture(vimkeys.Chain(nav.InputCapture, leader.InputCapture))
+app.SetRoot(vimkeys.NewTray(leader, root), true) // Space shows the tray
+app.SetInputCapture(vimkeys.Chain(leader.InputCapture, nav.InputCapture))
 logPane.SetInputCapture(vimkeys.Motions())
 ```
+
+Put the leader first in the chain so a pending chord owns every key, including `C-h`. The tray has no timeout; without a tray the leader falls back to an 800ms chord timeout. Tools with modals set `leader.SkipWhen = func() bool { return modalOpen() || vimkeys.FocusWantsSpace(app) }`.
 
 ## tmux setup
 
