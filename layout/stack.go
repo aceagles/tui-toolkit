@@ -40,9 +40,9 @@ func (it *Item) SetSpecFunc(fn func() Spec) *Item {
 
 func (it *Item) resolve() Spec {
 	if it.specFn != nil {
-		return it.specFn().normal()
+		return it.specFn().Normalize()
 	}
-	return it.spec.normal()
+	return it.spec.Normalize()
 }
 
 // Stack lays panes out along one axis and re-solves their sizes from its

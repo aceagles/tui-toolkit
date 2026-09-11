@@ -1,4 +1,4 @@
-package layout
+package solve
 
 import (
 	"math/rand"
