@@ -14,10 +14,13 @@ import (
 // Style field is lipgloss.NewStyle()'s zero value, which applies no
 // colour), so a caller only needs to set what it wants to change.
 //
-// Box's own Border() and Padding() settings, if any, are not applied:
-// Render draws the box border itself (see Render's doc for why), so Box
-// supplies only the colour — Foreground and/or Background — painted onto
-// the border characters and the top-border title.
+// Box's own Border(), Padding(), Margin() and size settings, if any, are
+// stripped before use: Render draws the box border itself (see Render's
+// doc for why), so Box supplies only the colour painted onto the border
+// characters. A Box that sets BorderForeground rather than Foreground
+// (the natural way to colour a lipgloss border) has that colour used for
+// the glyphs, so a style written for a lipgloss-bordered tray still draws
+// one box in the intended colour, not a box around every line.
 type TrayStyle struct {
 	Title Style
 	Key   Style
@@ -89,6 +92,7 @@ func Render(l *Leader, style TrayStyle, width, maxHeight int) string {
 		grid[cell.Row][cell.Col] = renderEntry(style, content.Lines[i], content.KeyWidth, layout.ColWidth)
 	}
 
+	style.Box = borderGlyphStyle(style.Box)
 	lines := make([]string, 0, layout.Rows+2)
 	lines = append(lines, borderLine(style.Box, style.Title, boxBorder.TopRight, content.Title, width))
 	gap := strings.Repeat(" ", core.TrayGap)
@@ -119,6 +123,27 @@ func renderEntry(style TrayStyle, line core.TrayLine, keyWidth, colWidth int) st
 		entry = lipgloss.NewStyle().MaxWidth(colWidth).Render(entry)
 	}
 	return entry
+}
+
+// borderGlyphStyle reduces box to the colours Render paints onto its own
+// border glyphs. Rendering a glyph through a style that still carries a
+// lipgloss border or padding would wrap each glyph in a box of its own.
+func borderGlyphStyle(box Style) Style {
+	fg := box.GetForeground()
+	if _, unset := fg.(lipgloss.NoColor); unset || fg == nil {
+		fg = box.GetBorderTopForeground()
+	}
+	glyph := box.UnsetBorderStyle().
+		UnsetBorderTop().UnsetBorderRight().UnsetBorderBottom().UnsetBorderLeft().
+		UnsetBorderForeground().UnsetBorderBackground().
+		UnsetPadding().UnsetMargins().UnsetWidth().UnsetHeight().
+		UnsetMaxWidth().UnsetMaxHeight()
+	if fg != nil {
+		if _, unset := fg.(lipgloss.NoColor); !unset {
+			glyph = glyph.Foreground(fg)
+		}
+	}
+	return glyph
 }
 
 // contentRow wraps one already-assembled row of tray entries with the

@@ -148,3 +148,36 @@ func TestRenderDropsExcessRowsAndSaysSo(t *testing.T) {
 		t.Fatalf("bottom border does not say what was dropped:\n%q", bottom)
 	}
 }
+
+// TestRenderIgnoresBoxBorderAndPadding pins that a Box style carrying its
+// own lipgloss border and padding (the natural way to write a tray style
+// before Render drew its own box) still yields exactly one box: every line
+// exactly width cells, no rounded-corner glyphs from the caller's border,
+// and the height within maxHeight.
+func TestRenderIgnoresBoxBorderAndPadding(t *testing.T) {
+	l := newWideLeader(t)
+	style := DefaultTrayStyle
+	style.Box = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#7aa2f7")).
+		Padding(0, 1)
+
+	const width, maxHeight = 80, 12
+	out := Render(l, style, width, maxHeight)
+	lines := strings.Split(ansi.Strip(out), "\n")
+	if len(lines) > maxHeight {
+		t.Fatalf("Render() is %d lines, want <= %d:\n%s", len(lines), maxHeight, ansi.Strip(out))
+	}
+	for i, line := range lines {
+		if w := lipgloss.Width(line); w != width {
+			t.Errorf("line %d is %d cells, want %d: %q", i, w, width, line)
+		}
+		if strings.ContainsAny(line, "╭╮╰╯") {
+			t.Errorf("line %d carries the caller's rounded border: %q", i, line)
+		}
+	}
+	raw := strings.Split(out, "\n")
+	if bottom := raw[len(raw)-1]; !strings.Contains(bottom, "\x1b[") {
+		t.Errorf("bottom border %q carries no colour; BorderForeground should colour the glyphs", bottom)
+	}
+}
