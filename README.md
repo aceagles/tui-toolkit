@@ -32,7 +32,13 @@ app.SetInputCapture(vimkeys.Chain(leader.InputCapture, nav.InputCapture))
 logPane.SetInputCapture(vimkeys.Motions())
 ```
 
-Put the leader first in the chain so a pending chord owns every key, including `C-h`. The tray has no timeout; without a tray the leader falls back to an 800ms chord timeout. Tools with modals set `leader.SkipWhen = func() bool { return modalOpen() || vimkeys.FocusWantsSpace(app) }`.
+Put the leader first in the chain so a pending chord owns every key, including `C-h`. The tray has no timeout; without a tray the leader falls back to an 800ms chord timeout. `vimkeys.CtrlCAsEscape` wraps the app-level capture so `C-c` acts as `Esc` (cancel the edit, close the dialogue, abandon the chord) and never quits; tview otherwise stops the app on `C-c`. Give the tool an explicit quit key. A `kill -INT` still ends the process.
+
+```go
+app.SetInputCapture(vimkeys.CtrlCAsEscape(vimkeys.Chain(leader.InputCapture, nav.InputCapture)))
+```
+
+Tools with modals set `leader.SkipWhen = func() bool { return modalOpen() || vimkeys.FocusWantsSpace(app) }`.
 
 ## Layout
 
